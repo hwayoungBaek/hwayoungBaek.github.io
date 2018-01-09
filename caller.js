@@ -28,6 +28,17 @@ var canvas = window.canvas = document.querySelector('canvas');
 canvas.width = 480;
 canvas.height = 360;
 
+/*---------caller 에서도 desktop화면 보이도록------------*/
+var btn_desktop = document.querySelector('#btn_desktop');
+var btn_toggle_video = document.querySelector('#btn_toggle_video');
+var btn_toggle_sound = document.querySelector('#btn_toggle_sound');
+var btn_toggle_mic = document.querySelector('#btn_toggle_mic');
+
+btn_desktop.addEventListener('click', onToggleDesktop);
+btn_toggle_video.addEventListener('click', onToggleVideo);
+btn_toggle_sound.addEventListener('click', onToggleSound);
+btn_toggle_mic.addEventListener('click', onToggleMic);
+
 snapshotButton.onclick = function() {
     canvas.className = filterSelect.value;
     canvas.getContext('2d').drawImage(vid1, 0, 0, canvas.width, canvas.height);
@@ -174,4 +185,39 @@ function cbCheckIceCandidateAdded(candidateObject) {
 function cbCheckIceCandidateCompleted(descObject) {
     trace('cbCheckIceCandidateCompleted');
     output_offerDesc.value = descObject.sdp;
+}
+
+/*---------caller 에서도 desktop화면 보이도록------------*/
+var isDesktop = false;
+function onToggleDesktop(){
+
+    if (isDesktop == false) {
+        startDesktop();
+    } else {
+        start();
+    }
+    isDesktop = !isDesktop;    
+}
+
+function onToggleVideo() {
+    if (localstream) {
+        var items = localstream.getVideoTracks();
+        if (items && items.length > 0)
+          items[0].enabled = !items[0].enabled;
+    }
+  
+}
+function onToggleSound() {
+    if (remotestream) {
+        var items = remotestream.getAudioTracks();
+        if (items && items.length > 0)
+          items[0].enabled = items[0].enabled;
+    }
+}
+function onToggleMic() {
+    if (localstream) {
+        var items = localstream.getAudioTracks();
+        if (items && items.length > 0)
+          items[0].enabled = items[0].enabled;
+    }
 }

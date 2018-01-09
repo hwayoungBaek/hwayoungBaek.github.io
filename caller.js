@@ -188,6 +188,102 @@ function cbCheckIceCandidateCompleted(descObject) {
 }
 
 /*---------caller 에서도 desktop화면 보이도록------------*/
+function cbGotStream(stream) {
+    trace('Received local stream');
+    window.stream = stream;
+    vid1.srcObject = stream;
+    localstream = stream;
+
+    return navigator.mediaDevices.enumerateDevices();
+}
+function gotDevices(deviceInfos) {
+    // Handles being called several times to update labels. Preserve values.
+    var values = selectors.map(function(select) {
+      return select.value;
+    });
+    selectors.forEach(function(select) {
+      while (select.firstChild) {
+        select.removeChild(select.firstChild);
+      }
+    });
+    for (var i = 0; i !== deviceInfos.length; ++i) {
+      var deviceInfo = deviceInfos[i];
+      var option = document.createElement('option');
+      option.value = deviceInfo.deviceId;
+      if (deviceInfo.kind === 'audioinput') {
+        option.text = deviceInfo.label ||
+            'microphone ' + (audioInputSelect.length + 1);
+        audioInputSelect.appendChild(option);
+      } else if (deviceInfo.kind === 'audiooutput') {
+        option.text = deviceInfo.label || 'speaker ' +
+            (audioOutputSelect.length + 1);
+        audioOutputSelect.appendChild(option);
+      } else if (deviceInfo.kind === 'videoinput') {
+        option.text = deviceInfo.label || 'camera ' + (videoSelect.length + 1);
+        videoSelect.appendChild(option);
+      } else {
+        console.log('Some other kind of source/device: ', deviceInfo);
+      }
+    }
+    selectors.forEach(function(select, selectorIndex) {
+      if (Array.prototype.slice.call(select.childNodes).some(function(n) {
+        return n.value === values[selectorIndex];
+      })) {
+        select.value = values[selectorIndex];
+      }
+    });
+}
+function handleError(error) {
+    console.log('navigator.getUserMedia error: ', error);
+}
+navigator.mediaDevices.enumerateDevices().then(gotDevices).catch(handleError);
+function startDesktop() {
+    if (window.stream) {
+        window.stream.getTracks().forEach(function(track) {
+          track.stop();
+        });
+    }
+
+    getScreenId((error, sourceId, screenConstraints) => {
+    if (error === 'not-installed') return alert('The extension is not installed');
+    if (error === 'permission-denied') return alert('Permission is denied.');
+    if (error === 'not-chrome') return alert('Please use chrome.');
+
+    navigator.mediaDevices.getUserMedia(screenConstraints)
+        .then(stream => {
+            window.stream = stream;
+            vid1.srcObject = stream;
+            localstream = stream;
+        })
+        .catch(err => {
+            console.log(err);
+        });
+    });
+}
+function start() {
+    if (window.stream) {
+      window.stream.getTracks().forEach(function(track) {
+        track.stop();
+      });
+    }
+    var audioSource = audioInputSelect.value;
+    var videoSource = videoSelect.value;
+    var constraints = {
+      audio: {deviceId: audioSource ? {exact: audioSource} : undefined},
+      video: {deviceId: videoSource ? {exact: videoSource} : undefined}
+    };
+
+    navigator.mediaDevices.getUserMedia(constraints).
+        then(cbGotStream).then(gotDevices).catch(handleError);
+}
+
+audioInputSelect.onchange = start;
+audioOutputSelect.onchange = changeAudioDestination;
+videoSelect.onchange = start;
+
+start();
+/*---------------------------------------------------------- */
+
 var isDesktop = false;
 function onToggleDesktop(){
 

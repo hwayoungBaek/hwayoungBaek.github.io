@@ -39,6 +39,11 @@ btn_toggle_video.addEventListener('click', onToggleVideo);
 btn_toggle_sound.addEventListener('click', onToggleSound);
 btn_toggle_mic.addEventListener('click', onToggleMic);
 
+btn_desktop.addEventListener('click', onToggleDesktop);
+btn_toggle_video.addEventListener('click', onToggleVideo);
+btn_toggle_sound.addEventListener('click', onToggleSound);
+btn_toggle_mic.addEventListener('click', onToggleMic);
+
 snapshotButton.onclick = function() {
     canvas.className = filterSelect.value;
     canvas.getContext('2d').drawImage(vid1, 0, 0, canvas.width, canvas.height);

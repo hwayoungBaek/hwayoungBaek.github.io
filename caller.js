@@ -6,36 +6,18 @@ function trace(arg) {
 }
 
 // UI Element Value
-var output_offerDesc = document.querySelector('textarea#output_offerDesc');
-var input_answerDesc = document.querySelector('textarea#input_answerDesc');
-
 var vid1 = document.querySelector('#vid1');
 var vid2 = document.querySelector('#vid2');
-
 var btn_start = document.querySelector('#btn_start');
-var btn_finalOffer = document.querySelector('#btn_finalOffer');
-var btn_receiveAnswer = document.querySelector('#btn_receiveAnswer');
+var roomId = document.querySelector('#room_id');
 
 btn_start.addEventListener('click', onStart);
-btn_finalOffer.addEventListener('click', onOffer);
-btn_receiveAnswer.addEventListener('click', onReceiveAnswer);
-
-/*-------------desktop 보이는 기능 caller에도 추가 -------------- */
-var btn_desktop = document.querySelector('#btn_desktop');
-var btn_toggle_video = document.querySelector('#btn_toggle_video');
-var btn_toggle_sound = document.querySelector('#btn_toggle_sound');
-var btn_toggle_mic = document.querySelector('#btn_toggle_mic');
-
-btn_desktop.addEventListener('click', onToggleDesktop);
-btn_toggle_video.addEventListener('click', onToggleVideo);
-btn_toggle_sound.addEventListener('click', onToggleSound);
-btn_toggle_mic.addEventListener('click', onToggleMic);
-
 // ---------------------------------------------------------------------------------
-
 // Value
 var local_peer = null;
 var localstream = null;
+var SIGNAL_SERVER_HTTP_URL = 'http://localhost:3001';
+var SIGNAL_SERVER_WS_URL = 'ws://localhost:3001';
 // ---------------------------------------------------------------------------------
 function cbGotStream(stream) {
     trace('Received local stream');
@@ -60,13 +42,38 @@ function cbGotRemoteStream(evt) {
     }
 }
 
+function onWsMessage(messageEvt) {
+    console.info(messageEvt);
+
+    var obj = JSON.parse(messageEvt.data);
+    if (obj.code == '99') {
+        alert(obj.msg);
+    }
+    else if (obj.code == '01') {
+        // start
+        console.info('start in onWsMessage');
+        onOffer();
+    }
+    else if (obj.code == '00') {
+        receiveAnswer(obj.msg);
+    }    
+    else {
+        alert('unknown error in onWsMessage');
+    }    
+}
+
 function onStart() {
+
+    var url = SIGNAL_SERVER_WS_URL + '/room/' + roomId.value;
+    g_mc_ws_component.connect(url, onWsMessage);
+
     var cfg = {
         iceTransportPolicy: "all", // set to "relay" to force TURN.
         iceServers: [
         ]
     };
-    cfg.iceServers.push({urls: "stun:stun.l.google.com:19302"});
+    // cfg.iceServers.push({urls: "stun:stun.l.google.com:19302"});
+
     local_peer = new RTCPeerConnection(cfg);
     local_peer.onicecandidate = function (evt) {
         cbIceCandidate(local_peer, evt);
@@ -104,17 +111,10 @@ function onOffer() {
 function receiveAnswer(sdpString) {
     trace('receiveAnswer');
     var descObject = {
-        type: 'pranswer',
+        type: 'answer',
         sdp: sdpString
     };
     local_peer.setRemoteDescription(descObject);
-}
-
-function onReceiveAnswer() {
-    var sdpString = input_answerDesc.value;
-    receiveAnswer(sdpString);
-
-    trace('## receiveAnswer success');
 }
 
 function cbCreateOfferError(error) {
@@ -158,64 +158,26 @@ function cbCheckIceCandidateAdded(candidateObject) {
 
 function cbCheckIceCandidateCompleted(descObject) {
     trace('cbCheckIceCandidateCompleted');
-    output_offerDesc.value = descObject.sdp;
+    g_mc_ws_component.sendMessage(descObject.sdp);
 }
 
-/*-------------desktop 보이는 기능 caller에도 추가 -------------- */
-function startDesktop() {
-    if (window.stream) {
-        window.stream.getTracks().forEach(function(track) {
-          track.stop();
-        });
+
+var app = new Vue({
+    el: '#app',
+    data: {
+        rooms : [
+        ]
+    },
+    methods: {
+      onClickRoom : function (id) {
+        window.roomId.value = id;
+      },
+      onUpdateRoomList : function(event) {
+          this.$http.get(window.SIGNAL_SERVER_HTTP_URL + '/roomlist').then(response => {
+            this.rooms = response.body;
+          }, response => {
+            alert(response);
+          });          
+      }
     }
-
-    getScreenId((error, sourceId, screenConstraints) => {
-    if (error === 'not-installed') return alert('The extension is not installed');
-    if (error === 'permission-denied') return alert('Permission is denied.');
-    if (error === 'not-chrome') return alert('Please use chrome.');
-
-    navigator.mediaDevices.getUserMedia(screenConstraints)
-        .then(stream => {
-            window.stream = stream;
-            vid1.srcObject = stream;
-            localstream = stream;
-        })
-        .catch(err => {
-            console.log(err);
-        });
-    });
-}
-
-var isDesktop = false;
-function onToggleDesktop(){
-
-    if (isDesktop == false) {
-        startDesktop();
-    } else {
-        start();
-    }
-    isDesktop = !isDesktop;    
-}
-
-function onToggleVideo() {
-    if (localstream) {
-        var items = localstream.getVideoTracks();
-        if (items && items.length > 0)
-          items[0].enabled = !items[0].enabled;
-    }
-  
-}
-function onToggleSound() {
-    if (remotestream) {
-        var items = remotestream.getAudioTracks();
-        if (items && items.length > 0)
-          items[0].enabled = items[0].enabled;
-    }
-}
-function onToggleMic() {
-    if (localstream) {
-        var items = localstream.getAudioTracks();
-        if (items && items.length > 0)
-          items[0].enabled = items[0].enabled;
-    }
-}
+  })
